@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"
+      integrity="sha512-0zGLOFv/+OQ6YfVCSGDQWhrDRx0ONmBqWvs3gI4olm8i6xtKoG1FhEnB4eTaWCVnojyfUDgE8Izeln+mAJAkFA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+  <script>
+    let points = [];
+    const setSize = 7;
+
+    let pivot;
+    let nextPivot;
+
+    let angle = 0;
+    let angleSpeed = 6;
+
+    let soundEffect;
+
+    // function preload() {
+    //   soundEffect = loadSound('click.mp3');
+    // }
+
+    function setup() {
+      createCanvas(windowWidth, windowHeight);
+      angleMode(RADIANS);
+
+      // create points at random location
+      for (let i = 0; i < setSize - 1; i++) {
+        points.push(createVector(random(0.2 * width, 0.8 * width), random(0.2 * height, 0.8 * height)));
+        points[i].counter = 0;
+      }
+
+      // create pivot element
+      pivot = createVector(random(0.2 * width, 0.8 * width), random(0.2 * height, 0.8 * height));
+      pivot.counter = 1;
+    }
+
+    function draw() {
+      for (let k = 0; k < angleSpeed; k++) { // speed up animation
+        background(80);
+
+        // next pivot chosen?
+        if (!nextPivot) {
+          for (let i = 0; i < points.length; i++) points[i].id = i;
+
+          // points right and left from the line, rotated by angle of line
+          let rightPoints = points.map(a => {
+            let obj = a.copy().sub(pivot).rotate(-angle);
+            obj.id = a.id;
+            return obj;
+          });
+          let leftPoints = points.map(a => {
+            let obj = a.copy().sub(pivot).rotate(-angle - Math.PI)
+            obj.id = a.id;
+            return obj;
+          });
+
+          // sort points by angle
+          let nextId = [...rightPoints, ...leftPoints].sort((a, b) => {
+            let angA = a.heading() + TWO_PI;
+            let angB = b.heading() + TWO_PI;
+            return (angA % TWO_PI) - (angB % TWO_PI);
+          }).shift().id;
+
+          nextPivot = points.find(p => p.id == nextId);
+        }
+
+        // drawing points
+        stroke(255);
+        strokeWeight(7);
+        for (let p of points) {
+          point(p.x, p.y);
+        }
+
+        // draw numbers
+        noStroke();
+        strokeWeight(2);
+        textSize(15);
+        fill(255);
+        for (let p of [...points, pivot]) {
+          text(p.counter || "0", p.x + 5, p.y);
+        }
+
+        // drawing line
+        strokeWeight(1);
+        let l1 = p5.Vector.fromAngle(angle).mult(width ** 2 + height ** 2).add(pivot);
+        let l2 = p5.Vector.fromAngle(angle + Math.PI).mult(width ** 2 + height ** 2).add(pivot);
+        stroke(255, 0, 0);
+        line(pivot.x, pivot.y, l1.x, l1.y)
+        // stroke(255, 0, 255);
+        line(pivot.x, pivot.y, l2.x, l2.y)
+
+        // highlight the current and next pivot
+        strokeWeight(7);
+        stroke(255, 255, 0);
+        point(pivot.x, pivot.y);
+        stroke(0, 255, 0);
+        point(nextPivot.x, nextPivot.y);
+
+        // close to next pivot?
+        let angDiff = radians(0.1);
+        let closeToNextPivot = (Math.abs(nextPivot.copy().sub(pivot).heading() - angle) % TWO_PI < angDiff || Math.abs(nextPivot.copy().sub(pivot).heading() - angle - Math.PI) % TWO_PI < angDiff);
+        if (closeToNextPivot) {
+
+          // find index of next pivot in points
+          let indexOfNextPivot = -1;
+          let minDist = Infinity;
+          for (let i = 0; i < points.length; i++) {
+            let d = dist(nextPivot.x, nextPivot.y, points[i].x, points[i].y);
+            if (minDist > d) {
+              indexOfNextPivot = i;
+              minDist = d;
+            }
+          }
+
+          points.splice(indexOfNextPivot, 1); // remove next pivot from points
+          points.push(pivot); // add current pivot to points
+          pivot = nextPivot;
+          pivot.counter = (pivot.counter || 0) + 1;
+          nextPivot = null; // set next pivot to unknown
+          // soundEffect.play();
+        }
+        angle += radians(0.1);
+        angle %= TWO_PI;
+      }
+    }
+
+    function mousePressed() {
+      points.push(createVector(mouseX + random(-0.1, 0.1), mouseY + random(-0.1, 0.1))); // add point at mouse location plus random, so no points have same coordinates
+      nextPivot = null; // set next pivot to unknown
+      return false; // prevent default
+    }
+  </script>
+</body>
+
+</html>
